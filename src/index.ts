@@ -524,6 +524,23 @@ const DELETE_LEAD_FROM_CAMPAIGN_TOOL: Tool = {
   },
 };
 
+// Add this new tool definition after the existing tools
+
+const GET_CAMPAIGN_EMAIL_ACCOUNTS_TOOL: Tool = {
+  name: 'smartlead_get_campaign_email_accounts',
+  description: 'Get all email accounts and their tags for a campaign.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      campaign_id: {
+        type: 'number',
+        description: 'ID of the campaign',
+      },
+    },
+    required: ['campaign_id'],
+  },
+};
+
 // Type definitions
 // Campaign management types
 interface CreateCampaignParams {
@@ -655,6 +672,12 @@ interface UpdateLeadInCampaignParams {
 interface DeleteLeadFromCampaignParams {
   campaign_id: number;
   lead_id: number;
+}
+
+// Add this new interface after the existing interfaces
+
+interface GetCampaignEmailAccountsParams {
+  campaign_id: number;
 }
 
 // Type guards
@@ -844,6 +867,17 @@ function isDeleteLeadFromCampaignParams(args: unknown): args is DeleteLeadFromCa
   );
 }
 
+// Add this new type guard after the existing type guards
+
+function isGetCampaignEmailAccountsParams(args: unknown): args is GetCampaignEmailAccountsParams {
+  return (
+    typeof args === 'object' &&
+    args !== null &&
+    'campaign_id' in args &&
+    typeof (args as { campaign_id: unknown }).campaign_id === 'number'
+  );
+}
+
 // Server implementation
 const server = new Server(
   {
@@ -977,6 +1011,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     ADD_LEAD_TO_CAMPAIGN_TOOL,
     UPDATE_LEAD_IN_CAMPAIGN_TOOL,
     DELETE_LEAD_FROM_CAMPAIGN_TOOL,
+    GET_CAMPAIGN_EMAIL_ACCOUNTS_TOOL,
   ],
 }));
 
@@ -1545,6 +1580,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               {
                 type: 'text',
                 text: JSON.stringify(response.data, null, 2),
+              },
+            ],
+            isError: false,
+          };
+        } catch (error) {
+          const errorMessage = axios.isAxiosError(error)
+            ? `API Error: ${error.response?.data?.message || error.message}`
+            : `Error: ${error instanceof Error ? error.message : String(error)}`;
+
+          return {
+            content: [{ type: 'text', text: errorMessage }],
+            isError: true,
+          };
+        }
+      }
+
+      case 'smartlead_get_campaign_email_accounts': {
+        if (!isGetCampaignEmailAccountsParams(args)) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'Invalid arguments for smartlead_get_campaign_email_accounts'
+          );
+        }
+
+        try {
+          // Get all email accounts for the campaign
+          const response = await withRetry(
+            async () => apiClient.get(`/campaigns/${args.campaign_id}/email-accounts`),
+            'get campaign email accounts'
+          );
+
+          // Get tags for each email account
+          const emailAccountsWithTags = await Promise.all(
+            response.data.map(async (account: any) => {
+              try {
+                const tagsResponse = await withRetry(
+                  async () => apiClient.get(`/email-accounts/${account.id}/tags`),
+                  'get email account tags'
+                );
+                return {
+                  ...account,
+                  tags: tagsResponse.data,
+                };
+              } catch (error) {
+                return {
+                  ...account,
+                  tags: [],
+                  tags_error: axios.isAxiosError(error)
+                    ? error.response?.data?.message || error.message
+                    : error instanceof Error ? error.message : String(error),
+                };
+              }
+            })
+          );
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(emailAccountsWithTags, null, 2),
               },
             ],
             isError: false,
