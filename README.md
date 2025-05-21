@@ -1,7 +1,6 @@
 # One Click Deploy Smartlead MCP Server with SSE
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/YOUR_RAILWAY_TEMPLATE_ID_OR_URL_HERE) 
-<!-- Replace YOUR_RAILWAY_TEMPLATE_ID_OR_URL_HERE with your actual Railway template link once created -->
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/YyT1tk?referralCode=SQ5fZY)
 
 This is a Model Context Protocol (MCP) server, enhanced with Supergateway, that allows AI agents to interact with the Smartlead campaign management API over Server-Sent Events (SSE).
 
